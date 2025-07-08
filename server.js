@@ -1,25 +1,30 @@
 const express = require("express");
-const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
+const { authMiddleware } = require("./middlewares/auth.middleware");
+const routes = require("./routes");
+
 dotenv.config();
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// DB connection
 connectDB();
 
-// Routes
-app.get("/", (req, res) => {
-  res.send("🚀 API is running");
+const app = express();
+app.use(express.json());
+
+// Apply JWT middleware to all /api routes EXCEPT login, register, product list
+app.use("/api", (req, res, next) => {
+  const publicPaths = [
+    "/auth/login",
+    "/auth/register",
+    "/products", // GET /api/products
+  ];
+  const isPublic = publicPaths.some(path => req.path.startsWith(path));
+  if (isPublic && req.method === "GET" || req.path === "/auth/login" || req.path === "/auth/register") {
+    return next(); // skip auth
+  }
+  authMiddleware(req, res, next); // apply JWT check
 });
 
-// Shop routes (later)
-// const shopRoutes = require("./routes/shopRoutes");
-// app.use("/api/shops", shopRoutes);
+app.use("/api", routes);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(5000, () => console.log("🚀 Server started on port 5000"));
